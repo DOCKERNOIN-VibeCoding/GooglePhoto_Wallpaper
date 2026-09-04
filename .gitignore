@@ -1,0 +1,12 @@
+# Build output
+bin/
+obj/
+publish/
+*.user
+
+# The developer's own OAuth client must never be committed.
+client_secret*.json
+appsettings.local.json
+
+# Local runtime state
+*.log

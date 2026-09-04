@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>GooglePhotoWallpaper</AssemblyName>
+    <RootNamespace>GooglePhotoWallpaper</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>Google Photo Wallpaper</Product>
+    <Company>DOCKERNOIN-VibeCoding</Company>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- WinForms is referenced only for the tray icon and the folder dialog; the DPI settings
+         in app.manifest are the ones WPF needs, so WFAC010 does not apply here. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <!-- Both UI stacks are in scope, so spell out which library owns the ambiguous names. -->
+  <ItemGroup>
+    <Using Include="System.Windows.Application" Alias="Application" />
+    <Using Include="System.Windows.MessageBox" Alias="MessageBox" />
+  </ItemGroup>
+
+</Project>

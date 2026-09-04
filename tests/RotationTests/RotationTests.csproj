@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>GooglePhotoWallpaper.Tests</RootNamespace>
+    <AssemblyName>RotationTests</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    RotationEngine is pure logic with no Windows dependencies, so it is compiled straight into this
+    plain console runner. That keeps the tests runnable with nothing but the .NET SDK - no NuGet
+    feed, no test framework to restore.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\src\GooglePhotoWallpaper\Services\RotationEngine.cs"
+             Link="RotationEngine.cs" />
+  </ItemGroup>
+
+</Project>

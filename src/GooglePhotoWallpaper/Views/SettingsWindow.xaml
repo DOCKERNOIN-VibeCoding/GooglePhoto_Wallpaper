@@ -1,0 +1,234 @@
+<Window x:Class="GooglePhotoWallpaper.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Google Photo Wallpaper 설정"
+        Width="620" Height="760"
+        MinWidth="560" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Bg}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}"
+                BorderThickness="0,0,0,1" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="Google Photo Wallpaper" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="StatusLine" Style="{StaticResource Hint}" Margin="0,4,0,0"
+                           Text="상태를 불러오는 중..." />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,16">
+            <StackPanel>
+
+                <!-- Current assignment preview -->
+                <Border Style="{StaticResource CardPanel}">
+                    <StackPanel>
+                        <TextBlock Text="현재 화면 배치" Style="{StaticResource SectionTitle}" />
+                        <ItemsControl x:Name="MonitorPreview">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,10,0">
+                                        <Border CornerRadius="5" BorderBrush="{StaticResource Line}"
+                                                BorderThickness="1" Background="#EEF0F2"
+                                                Height="86" ClipToBounds="True">
+                                            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                                   FontSize="12" Margin="0,6,0,0" />
+                                        <TextBlock Text="{Binding Caption}" Style="{StaticResource Hint}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="PreviewHint" Style="{StaticResource Hint}" Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Photo source -->
+                <Border Style="{StaticResource CardPanel}">
+                    <StackPanel>
+                        <TextBlock Text="사진 가져올 곳" Style="{StaticResource SectionTitle}" />
+
+                        <RadioButton x:Name="SourceGoogleRadio" GroupName="Source"
+                                     Content="Google Photos" Checked="OnSourceChanged" />
+                        <StackPanel Margin="22,2,0,10"
+                                    Visibility="{Binding IsChecked, ElementName=SourceGoogleRadio,
+                                                 Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="사진 선택 창이 브라우저에 열립니다. 검색창에 앨범 이름을 입력하면 그 앨범의 사진만 골라 담을 수 있습니다. 한 번에 최대 2000장." />
+
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="AccountLine" Grid.Column="0" VerticalAlignment="Center"
+                                           FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="ConnectButton" Content="계정 연결" Click="OnConnectAccount" />
+                                    <Button x:Name="DisconnectButton" Content="연결 해제" Margin="6,0,0,0"
+                                            Click="OnDisconnectAccount" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Button x:Name="PickPhotosButton" Style="{StaticResource PrimaryButton}"
+                                    Content="Google Photos에서 사진 선택" Margin="0,10,0,0"
+                                    HorizontalAlignment="Left" Click="OnPickPhotos" />
+
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
+                                       Text="앨범에 사진을 새로 추가했다면 다시 선택해야 반영됩니다. Google이 2025년 3월 앨범 자동 조회 기능을 중단해, 자동 동기화가 필요하면 아래 '로컬 폴더'를 쓰세요." />
+                        </StackPanel>
+
+                        <RadioButton x:Name="SourceFolderRadio" GroupName="Source"
+                                     Content="로컬 폴더" Checked="OnSourceChanged" />
+                        <StackPanel Margin="22,2,0,0"
+                                    Visibility="{Binding IsChecked, ElementName=SourceFolderRadio,
+                                                 Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="폴더에 파일이 추가되면 다음 변경 때 자동으로 반영됩니다. Google Takeout으로 내려받은 앨범 폴더나 동기화 폴더를 지정하세요." />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="FolderPathBox" Grid.Column="0" IsReadOnly="True" />
+                                <Button Grid.Column="1" Content="찾아보기" Margin="6,0,0,0"
+                                        Click="OnBrowseFolder" />
+                            </Grid>
+                            <CheckBox x:Name="RecursiveCheck" Content="하위 폴더까지 포함" />
+                            <Button Content="지금 다시 읽기" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                    Click="OnRescanFolder" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Rotation -->
+                <Border Style="{StaticResource CardPanel}">
+                    <StackPanel>
+                        <TextBlock Text="바꾸는 방식" Style="{StaticResource SectionTitle}" />
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="변경 주기" VerticalAlignment="Center"
+                                       FontSize="12.5" Margin="0,0,10,0" />
+                            <ComboBox x:Name="IntervalCombo" Grid.Column="1" Width="130" IsEditable="True" />
+                            <TextBlock Grid.Column="2" Text="분" VerticalAlignment="Center"
+                                       FontSize="12.5" Margin="8,0,0,0" />
+                        </Grid>
+
+                        <Separator Margin="0,14,0,10" Background="{StaticResource Line}" />
+
+                        <TextBlock Text="여러 모니터를 쓸 때" FontSize="12.5" FontWeight="SemiBold"
+                                   Margin="0,0,0,4" />
+                        <RadioButton x:Name="SequentialRadio" GroupName="MonitorMode"
+                                     Content="모니터마다 다음 사진을 이어서 보여주기" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,6"
+                                   Text="모니터1=A·모니터2=B → 모니터1=B·모니터2=C → 모니터1=C·모니터2=D 순으로 한 칸씩 밀립니다." />
+                        <RadioButton x:Name="MirrorRadio" GroupName="MonitorMode"
+                                     Content="모든 모니터에 같은 사진 보여주기" />
+
+                        <Separator Margin="0,14,0,10" Background="{StaticResource Line}" />
+
+                        <CheckBox x:Name="ShuffleCheck" Content="사진 순서 섞기" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,6"
+                                   Text="섞어도 모니터끼리 한 칸씩 이어지는 관계는 그대로 유지됩니다." />
+
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="화면 맞춤" VerticalAlignment="Center"
+                                       FontSize="12.5" Margin="0,0,10,0" />
+                            <ComboBox x:Name="PositionCombo" Grid.Column="1" Width="150" />
+                        </Grid>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                                   Text="Windows는 맞춤 방식을 모든 모니터에 동일하게 적용합니다." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Google Cloud credentials -->
+                <Border Style="{StaticResource CardPanel}">
+                    <StackPanel>
+                        <TextBlock Text="Google 연결에 쓸 OAuth 클라이언트" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="개인 계정 정보가 아니라 '앱 등록 정보'입니다. 이 프로그램에는 아무 자격증명도 들어 있지 않아, 사용하려면 한 번만 직접 발급해 등록해야 합니다." />
+
+                        <RadioButton x:Name="CredUserRadio" GroupName="Cred" Margin="0,10,0,0"
+                                     Content="직접 발급한 client_secret.json 사용" />
+                        <StackPanel Margin="22,2,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="ClientStatusLine" Grid.Column="0" FontSize="12.5"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="파일 선택" Click="OnImportClientSecret" />
+                                    <Button x:Name="ClearClientButton" Content="삭제" Margin="6,0,0,0"
+                                            Click="OnClearClientSecret" />
+                                </StackPanel>
+                            </Grid>
+                            <Button Content="발급 방법 보기" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                    Click="OnOpenSetupGuide" />
+                        </StackPanel>
+
+                        <RadioButton x:Name="CredBundledRadio" GroupName="Cred" Margin="0,10,0,0"
+                                     Content="이 빌드에 포함된 클라이언트 사용" />
+                        <TextBlock x:Name="BundledHint" Style="{StaticResource Hint}" Margin="22,0,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Misc -->
+                <Border Style="{StaticResource CardPanel}">
+                    <StackPanel>
+                        <TextBlock Text="기타" Style="{StaticResource SectionTitle}" />
+                        <CheckBox x:Name="StartupCheck" Content="Windows 시작할 때 자동 실행" />
+                        <CheckBox x:Name="ChangeOnStartCheck" Content="프로그램을 켤 때 바로 한 장 넘기기" />
+                        <Button Content="캐시 폴더 열기" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                Click="OnOpenCacheFolder" />
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}"
+                BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="BusyLine" Grid.Column="0" Style="{StaticResource Hint}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="지금 다음 사진" Click="OnAdvanceNow" />
+                    <Button Content="저장" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0"
+                            Click="OnSave" />
+                    <Button Content="닫기" Margin="8,0,0,0" Click="OnClose" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
