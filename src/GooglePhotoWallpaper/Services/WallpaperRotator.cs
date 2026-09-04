@@ -27,6 +27,7 @@ public sealed class WallpaperRotator : IDisposable
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(20);
 
     private readonly WallpaperService _wallpaper;
+    private readonly WallpaperComposer _composer = new();
     private readonly RotationEngine _engine;
     private readonly PhotoLibrary _library;
     private readonly SettingsStore _settingsStore;
@@ -74,7 +75,7 @@ public sealed class WallpaperRotator : IDisposable
             _library.Load();
             _engine.Load(_library.Count, _settings.Shuffle, _settings.RotationOffset);
 
-            _wallpaper.Position = _settings.Position;
+            _wallpaper.Position = _settings.WindowsPosition;
 
             _nextChangeAt = DateTimeOffset.UtcNow + _settings.Interval;
             _timer?.Dispose();
@@ -129,7 +130,7 @@ public sealed class WallpaperRotator : IDisposable
                 _engine.Load(_library.Count, settings.Shuffle, settings.RotationOffset);
             }
 
-            _wallpaper.Position = settings.Position;
+            _wallpaper.Position = settings.WindowsPosition;
             _nextChangeAt = DateTimeOffset.UtcNow + settings.Interval;
         }
 
@@ -263,23 +264,47 @@ public sealed class WallpaperRotator : IDisposable
 
             var applied = new List<string>(monitors.Count);
 
-            if (_settings.MirrorAllMonitors)
+            switch (_settings.MonitorMode)
             {
-                int index = _engine.CurrentMirroredIndex();
-                if (index >= 0 && index < photos.Count)
+                case MonitorAssignmentMode.Single:
                 {
-                    _wallpaper.SetWallpaperOnAllMonitors(photos[index].FilePath);
-                    applied.Add(photos[index].FilePath);
+                    // Everything else keeps whatever it is showing, including wallpapers this app
+                    // never set.
+                    int target = Math.Clamp(_settings.TargetMonitorIndex, 0, monitors.Count - 1);
+                    int index = _engine.CurrentMirroredIndex();
+                    if (index >= 0 && index < photos.Count)
+                    {
+                        applied.Add(Apply(monitors[target], photos[index]));
+                    }
+
+                    break;
                 }
-            }
-            else
-            {
-                IReadOnlyList<int> assignment = _engine.CurrentAssignment(monitors.Count);
-                for (int i = 0; i < monitors.Count && i < assignment.Count; i++)
+
+                case MonitorAssignmentMode.Mirror:
                 {
-                    PhotoItem photo = photos[assignment[i]];
-                    _wallpaper.SetWallpaper(monitors[i].DeviceId, photo.FilePath);
-                    applied.Add(photo.FilePath);
+                    int index = _engine.CurrentMirroredIndex();
+                    if (index >= 0 && index < photos.Count)
+                    {
+                        // Set per monitor rather than in one call: monitors of different sizes need
+                        // their own composed copy of the same photo.
+                        foreach (MonitorInfo monitor in monitors)
+                        {
+                            applied.Add(Apply(monitor, photos[index]));
+                        }
+                    }
+
+                    break;
+                }
+
+                default:
+                {
+                    IReadOnlyList<int> assignment = _engine.CurrentAssignment(monitors.Count);
+                    for (int i = 0; i < monitors.Count && i < assignment.Count; i++)
+                    {
+                        applied.Add(Apply(monitors[i], photos[assignment[i]]));
+                    }
+
+                    break;
                 }
             }
 
@@ -301,6 +326,19 @@ public sealed class WallpaperRotator : IDisposable
         }
 
         RaiseStatusChanged();
+    }
+
+    /// <summary>
+    /// Puts one photo on one monitor, composing a padded version first when the fit mode calls for
+    /// it. Returns the file that ended up on screen.
+    /// </summary>
+    private string Apply(MonitorInfo monitor, PhotoItem photo)
+    {
+        string path = _composer.Resolve(
+            photo, monitor.Rect.Width, monitor.Rect.Height, _settings.FitMode);
+
+        _wallpaper.SetWallpaper(monitor.DeviceId, path);
+        return path;
     }
 
     private RotationStatus BuildStatus()

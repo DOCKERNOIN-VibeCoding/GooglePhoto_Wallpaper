@@ -16,6 +16,51 @@ public enum PhotoSourceKind
     SharedAlbum = 2,
 }
 
+public enum MonitorAssignmentMode
+{
+    /// <summary>Each monitor sits one photo further along the list: A/B, then B/C, then C/D.</summary>
+    Sequential = 0,
+
+    /// <summary>Every monitor shows the same photo.</summary>
+    Mirror = 1,
+
+    /// <summary>Only one chosen monitor changes; the others keep whatever wallpaper they have.</summary>
+    Single = 2,
+}
+
+/// <summary>
+/// How a photo is fitted to a monitor.
+///
+/// The padded modes are not Windows wallpaper positions - Windows has no such mode - so the app
+/// composes an image at the monitor's exact resolution and sets that instead.
+/// </summary>
+public enum PhotoFitMode
+{
+    /// <summary>Windows crops the photo to cover the screen. Fast, but cuts off the edges.</summary>
+    Crop = 0,
+
+    /// <summary>Whole photo, with the gaps filled by a blurred, zoomed copy of itself.</summary>
+    BlurredPadding = 1,
+
+    /// <summary>Whole photo, with plain black bars in the gaps.</summary>
+    SolidPadding = 2,
+
+    /// <summary>Windows shrinks the photo to fit, leaving the background colour visible.</summary>
+    WindowsFit = 3,
+
+    /// <summary>Windows stretches the photo, ignoring its aspect ratio.</summary>
+    WindowsStretch = 4,
+
+    /// <summary>Windows centres the photo at its original size.</summary>
+    WindowsCenter = 5,
+
+    /// <summary>Windows repeats the photo across the screen.</summary>
+    WindowsTile = 6,
+
+    /// <summary>Windows spans one photo across every monitor.</summary>
+    WindowsSpan = 7,
+}
+
 public enum OAuthCredentialMode
 {
     /// <summary>The user registers their own Google Cloud OAuth client. Nothing ships with the app.</summary>
@@ -49,13 +94,17 @@ public sealed class AppSettings
 
     public OAuthCredentialMode CredentialMode { get; set; } = OAuthCredentialMode.UserProvided;
 
-    /// <summary>Give every monitor the same picture instead of the staggered sequence.</summary>
-    public bool MirrorAllMonitors { get; set; }
+    public MonitorAssignmentMode MonitorMode { get; set; } = MonitorAssignmentMode.Sequential;
+
+    /// <summary>
+    /// Which monitor changes in <see cref="MonitorAssignmentMode.Single"/> mode, zero-based and in
+    /// the order the settings window lists them. Clamped if that monitor is unplugged.
+    /// </summary>
+    public int TargetMonitorIndex { get; set; }
 
     public bool Shuffle { get; set; }
 
-    /// <summary>How Windows fits pictures to the screen. Windows applies one setting to every monitor.</summary>
-    public Interop.DesktopWallpaperPosition Position { get; set; } = Interop.DesktopWallpaperPosition.Fill;
+    public PhotoFitMode FitMode { get; set; } = PhotoFitMode.Crop;
 
     public bool StartWithWindows { get; set; }
 
@@ -73,4 +122,24 @@ public sealed class AppSettings
 
     [JsonIgnore]
     public TimeSpan AlbumSyncInterval => TimeSpan.FromMinutes(Math.Clamp(AlbumSyncMinutes, 1, 60 * 24));
+
+    /// <summary>True when the app has to build the image itself rather than let Windows place it.</summary>
+    [JsonIgnore]
+    public bool RequiresComposition =>
+        FitMode is PhotoFitMode.BlurredPadding or PhotoFitMode.SolidPadding;
+
+    /// <summary>
+    /// The Windows placement to pair with the chosen fit. Composed images are already exactly the
+    /// monitor's size, so they are set to Fill - any placement would leave them untouched.
+    /// </summary>
+    [JsonIgnore]
+    public Interop.DesktopWallpaperPosition WindowsPosition => FitMode switch
+    {
+        PhotoFitMode.WindowsFit => Interop.DesktopWallpaperPosition.Fit,
+        PhotoFitMode.WindowsStretch => Interop.DesktopWallpaperPosition.Stretch,
+        PhotoFitMode.WindowsCenter => Interop.DesktopWallpaperPosition.Center,
+        PhotoFitMode.WindowsTile => Interop.DesktopWallpaperPosition.Tile,
+        PhotoFitMode.WindowsSpan => Interop.DesktopWallpaperPosition.Span,
+        _ => Interop.DesktopWallpaperPosition.Fill,
+    };
 }

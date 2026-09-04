@@ -33,14 +33,23 @@ public partial class SettingsWindow : Window
     /// </summary>
     private const double AlbumPageKilobytes = 209;
 
-    private static readonly (DesktopWallpaperPosition Value, string Label)[] PositionOptions =
+    private static readonly (PhotoFitMode Value, string Label, string Hint)[] FitOptions =
     [
-        (DesktopWallpaperPosition.Fill, "채우기 (Fill)"),
-        (DesktopWallpaperPosition.Fit, "맞춤 (Fit)"),
-        (DesktopWallpaperPosition.Stretch, "늘이기 (Stretch)"),
-        (DesktopWallpaperPosition.Center, "가운데 (Center)"),
-        (DesktopWallpaperPosition.Tile, "바둑판 (Tile)"),
-        (DesktopWallpaperPosition.Span, "확장 (Span)"),
+        (PhotoFitMode.Crop, "채우기 — 화면을 꽉 채움",
+            "화면 밖으로 나가는 부분은 잘립니다. 세로 사진은 위아래가 크게 잘려나갑니다."),
+        (PhotoFitMode.BlurredPadding, "전체 보이기 — 블러 배경",
+            "사진 전체를 보여주고, 남는 좌우 여백을 같은 사진을 확대·흐리게 한 것으로 채웁니다."),
+        (PhotoFitMode.SolidPadding, "전체 보이기 — 검은 여백",
+            "사진 전체를 보여주고, 남는 여백은 검게 둡니다."),
+        (PhotoFitMode.WindowsFit, "맞춤 (Windows)",
+            "Windows 기본 맞춤. 여백은 바탕 색으로 채워집니다."),
+        (PhotoFitMode.WindowsStretch, "늘이기 (Windows)",
+            "화면 비율에 맞춰 늘립니다. 사진이 찌그러집니다."),
+        (PhotoFitMode.WindowsCenter, "가운데 (Windows)",
+            "원래 크기 그대로 화면 가운데에 놓습니다."),
+        (PhotoFitMode.WindowsTile, "바둑판 (Windows)", "사진을 반복해서 깝니다."),
+        (PhotoFitMode.WindowsSpan, "확장 (Windows)",
+            "사진 한 장을 여러 모니터에 걸쳐 펼칩니다. 모니터별 배치와는 어울리지 않습니다."),
     ];
 
     private readonly AppServices _services;
@@ -55,9 +64,9 @@ public partial class SettingsWindow : Window
 
         MonitorPreview.ItemsSource = _preview;
 
-        foreach ((DesktopWallpaperPosition _, string label) in PositionOptions)
+        foreach ((PhotoFitMode _, string label, string _) in FitOptions)
         {
-            PositionCombo.Items.Add(label);
+            FitCombo.Items.Add(label);
         }
 
         foreach (int minutes in IntervalPresets)
@@ -101,12 +110,16 @@ public partial class SettingsWindow : Window
 
             IntervalCombo.Text = s.IntervalMinutes.ToString(CultureInfo.InvariantCulture);
 
-            SequentialRadio.IsChecked = !s.MirrorAllMonitors;
-            MirrorRadio.IsChecked = s.MirrorAllMonitors;
+            SequentialRadio.IsChecked = s.MonitorMode == MonitorAssignmentMode.Sequential;
+            MirrorRadio.IsChecked = s.MonitorMode == MonitorAssignmentMode.Mirror;
+            SingleRadio.IsChecked = s.MonitorMode == MonitorAssignmentMode.Single;
             ShuffleCheck.IsChecked = s.Shuffle;
 
-            int positionIndex = Array.FindIndex(PositionOptions, p => p.Value == s.Position);
-            PositionCombo.SelectedIndex = positionIndex >= 0 ? positionIndex : 0;
+            PopulateMonitorList(s.TargetMonitorIndex);
+
+            int fitIndex = Array.FindIndex(FitOptions, f => f.Value == s.FitMode);
+            FitCombo.SelectedIndex = fitIndex >= 0 ? fitIndex : 0;
+            UpdateFitHint();
 
             CredUserRadio.IsChecked = s.CredentialMode == OAuthCredentialMode.UserProvided;
             CredBundledRadio.IsChecked = s.CredentialMode == OAuthCredentialMode.Bundled;
@@ -155,12 +168,23 @@ public partial class SettingsWindow : Window
             s.IntervalMinutes = Math.Min(minutes, 60 * 24);
         }
 
-        s.MirrorAllMonitors = MirrorRadio.IsChecked == true;
+        s.MonitorMode = true switch
+        {
+            _ when MirrorRadio.IsChecked == true => MonitorAssignmentMode.Mirror,
+            _ when SingleRadio.IsChecked == true => MonitorAssignmentMode.Single,
+            _ => MonitorAssignmentMode.Sequential,
+        };
+
+        if (TargetMonitorCombo.SelectedIndex >= 0)
+        {
+            s.TargetMonitorIndex = TargetMonitorCombo.SelectedIndex;
+        }
+
         s.Shuffle = ShuffleCheck.IsChecked == true;
 
-        if (PositionCombo.SelectedIndex >= 0 && PositionCombo.SelectedIndex < PositionOptions.Length)
+        if (FitCombo.SelectedIndex >= 0 && FitCombo.SelectedIndex < FitOptions.Length)
         {
-            s.Position = PositionOptions[PositionCombo.SelectedIndex].Value;
+            s.FitMode = FitOptions[FitCombo.SelectedIndex].Value;
         }
 
         s.CredentialMode = CredBundledRadio.IsChecked == true
@@ -188,6 +212,43 @@ public partial class SettingsWindow : Window
         // Picking signs the user in on its own when needed, so this stays available even with no
         // stored token - it only needs an OAuth client to sign in against.
         PickPhotosButton.IsEnabled = _services.HasOAuthClient;
+    }
+
+    /// <summary>
+    /// Lists the monitors that are attached right now, so the single-monitor choice reads
+    /// "모니터 2 (1920x1080)" rather than an index.
+    /// </summary>
+    private void PopulateMonitorList(int selectedIndex)
+    {
+        TargetMonitorCombo.Items.Clear();
+
+        IReadOnlyList<MonitorInfo> monitors = _services.Wallpaper.GetMonitors();
+        foreach (MonitorInfo monitor in monitors)
+        {
+            TargetMonitorCombo.Items.Add(monitor.DisplayName);
+        }
+
+        if (monitors.Count > 0)
+        {
+            TargetMonitorCombo.SelectedIndex = Math.Clamp(selectedIndex, 0, monitors.Count - 1);
+        }
+    }
+
+    private void OnFitModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        UpdateFitHint();
+    }
+
+    private void UpdateFitHint()
+    {
+        FitHint.Text = FitCombo.SelectedIndex >= 0 && FitCombo.SelectedIndex < FitOptions.Length
+            ? FitOptions[FitCombo.SelectedIndex].Hint
+            : string.Empty;
     }
 
     private void RefreshClientLine()
@@ -263,16 +324,32 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        bool mirror = _services.Settings.MirrorAllMonitors;
-        IReadOnlyList<int> assignment = mirror
-            ? Enumerable.Repeat(_services.Engine.CurrentMirroredIndex(), monitors.Count).ToArray()
-            : _services.Engine.CurrentAssignment(monitors.Count);
+        MonitorAssignmentMode mode = _services.Settings.MonitorMode;
+        int mirrored = _services.Engine.CurrentMirroredIndex();
+        int single = Math.Clamp(_services.Settings.TargetMonitorIndex, 0, monitors.Count - 1);
 
-        for (int i = 0; i < monitors.Count && i < assignment.Count; i++)
+        IReadOnlyList<int> sequential = mode == MonitorAssignmentMode.Sequential
+            ? _services.Engine.CurrentAssignment(monitors.Count)
+            : [];
+
+        for (int i = 0; i < monitors.Count; i++)
         {
-            int index = assignment[i];
+            // -1 marks a monitor this mode leaves alone.
+            int index = mode switch
+            {
+                MonitorAssignmentMode.Mirror => mirrored,
+                MonitorAssignmentMode.Single => i == single ? mirrored : -1,
+                _ => i < sequential.Count ? sequential[i] : -1,
+            };
+
             if (index < 0 || index >= photos.Count)
             {
+                _preview.Add(new MonitorPreviewItem
+                {
+                    Title = monitors[i].DisplayName,
+                    Caption = "변경하지 않음",
+                    Thumbnail = null,
+                });
                 continue;
             }
 
@@ -285,9 +362,13 @@ public partial class SettingsWindow : Window
             });
         }
 
-        PreviewHint.Text = mirror
-            ? "모든 모니터에 같은 사진을 표시하는 중입니다."
-            : $"모니터마다 사진이 한 칸씩 밀립니다. 총 {photos.Count}장을 순환합니다.";
+        PreviewHint.Text = mode switch
+        {
+            MonitorAssignmentMode.Mirror => $"모든 모니터에 같은 사진을 표시합니다. 총 {photos.Count}장을 순환합니다.",
+            MonitorAssignmentMode.Single =>
+                $"{monitors[single].DisplayName}만 바뀝니다. 총 {photos.Count}장을 순환합니다.",
+            _ => $"모니터마다 사진이 한 칸씩 밀립니다. 총 {photos.Count}장을 순환합니다.",
+        };
     }
 
     /// <summary>
@@ -400,6 +481,7 @@ public partial class SettingsWindow : Window
 
             _services.Rotator.SetPhotos(photos);
             _services.Library.PruneCache(AppPaths.CacheDirectory);
+            new WallpaperComposer().Prune(photos);
 
             SetBusy($"{photos.Count}장을 적용했습니다.");
             RefreshStatus();
@@ -467,6 +549,7 @@ public partial class SettingsWindow : Window
 
             _services.Rotator.SetPhotos(photos);
             _services.Library.PruneCache(AppPaths.CacheDirectory);
+            new WallpaperComposer().Prune(photos);
 
             SetBusy(source.LastNewCount > 0
                 ? $"{photos.Count}장을 적용했습니다. (새 사진 {source.LastNewCount}장)"

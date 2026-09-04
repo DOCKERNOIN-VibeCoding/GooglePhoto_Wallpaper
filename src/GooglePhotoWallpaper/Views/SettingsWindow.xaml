@@ -185,24 +185,28 @@
                                    Text="모니터1=A·모니터2=B → 모니터1=B·모니터2=C → 모니터1=C·모니터2=D 순으로 한 칸씩 밀립니다." />
                         <RadioButton x:Name="MirrorRadio" GroupName="MonitorMode"
                                      Content="모든 모니터에 같은 사진 보여주기" />
+                        <RadioButton x:Name="SingleRadio" GroupName="MonitorMode"
+                                     Content="지정한 모니터 한 대만 바꾸기" />
+                        <StackPanel Margin="22,2,0,0"
+                                    Visibility="{Binding IsChecked, ElementName=SingleRadio,
+                                                 Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="나머지 모니터는 지금 배경화면을 그대로 둡니다. 이 프로그램이 설정하지 않은 배경화면도 건드리지 않습니다." />
+                            <ComboBox x:Name="TargetMonitorCombo" Width="220" Margin="0,6,0,0"
+                                      HorizontalAlignment="Left" />
+                        </StackPanel>
 
                         <Separator Margin="0,14,0,10" Background="{StaticResource Line}" />
 
                         <CheckBox x:Name="ShuffleCheck" Content="사진 순서 섞기" />
-                        <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,6"
+                        <TextBlock Style="{StaticResource Hint}" Margin="22,0,0,10"
                                    Text="섞어도 모니터끼리 한 칸씩 이어지는 관계는 그대로 유지됩니다." />
 
-                        <Grid Margin="0,6,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="화면 맞춤" VerticalAlignment="Center"
-                                       FontSize="12.5" Margin="0,0,10,0" />
-                            <ComboBox x:Name="PositionCombo" Grid.Column="1" Width="150" />
-                        </Grid>
-                        <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
-                                   Text="Windows는 맞춤 방식을 모든 모니터에 동일하게 적용합니다." />
+                        <TextBlock Text="사진이 화면 비율과 다를 때" FontSize="12.5" FontWeight="SemiBold"
+                                   Margin="0,0,0,6" />
+                        <ComboBox x:Name="FitCombo" Width="260" HorizontalAlignment="Left"
+                                  SelectionChanged="OnFitModeChanged" />
+                        <TextBlock x:Name="FitHint" Style="{StaticResource Hint}" Margin="0,6,0,0" />
                     </StackPanel>
                 </Border>
 
