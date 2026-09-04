@@ -27,7 +27,7 @@ public sealed class WallpaperRotator : IDisposable
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(20);
 
     private readonly WallpaperService _wallpaper;
-    private readonly WallpaperComposer _composer = new();
+    private readonly WallpaperComposer _composer;
     private readonly RotationEngine _engine;
     private readonly PhotoLibrary _library;
     private readonly SettingsStore _settingsStore;
@@ -44,12 +44,14 @@ public sealed class WallpaperRotator : IDisposable
 
     public WallpaperRotator(
         WallpaperService wallpaper,
+        WallpaperComposer composer,
         RotationEngine engine,
         PhotoLibrary library,
         SettingsStore settingsStore,
         AppSettings settings)
     {
         _wallpaper = wallpaper;
+        _composer = composer;
         _engine = engine;
         _library = library;
         _settingsStore = settingsStore;

@@ -6,10 +6,10 @@ namespace GooglePhotoWallpaper.Services.Sources;
 /// <summary>
 /// Reads pictures straight off a folder.
 ///
-/// This is the answer to the one thing the Picker API cannot do: follow a set of photos as it
-/// changes. Point this at a folder that something else keeps in sync - Google Takeout, a Drive or
-/// OneDrive folder, a phone backup - and new files are picked up on the next refresh with no
-/// re-authorisation and no picking.
+/// The fallback that cannot break. The shared-album source reads a page format Google never
+/// promised to keep; this one reads the filesystem. Point it at a folder something else keeps in
+/// sync - a Google Takeout export, a Drive or OneDrive folder, a phone backup - and new files are
+/// picked up on the next refresh.
 /// </summary>
 public sealed class LocalFolderSource : IPhotoSource
 {

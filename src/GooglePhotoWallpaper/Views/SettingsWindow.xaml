@@ -101,37 +101,7 @@
                             </Grid>
 
                             <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
-                                       Text="공유 페이지를 직접 읽는 비공식 방식입니다. Google이 페이지 구조를 바꾸면 동작하지 않을 수 있고, 그때는 아래 두 방식으로 전환하면 됩니다." />
-                        </StackPanel>
-
-                        <RadioButton x:Name="SourceGoogleRadio" GroupName="Source"
-                                     Content="Google Photos" Checked="OnSourceChanged" />
-                        <StackPanel Margin="22,2,0,10"
-                                    Visibility="{Binding IsChecked, ElementName=SourceGoogleRadio,
-                                                 Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Style="{StaticResource Hint}"
-                                       Text="사진 선택 창이 브라우저에 열립니다. 검색창에 앨범 이름을 입력하면 그 앨범의 사진만 골라 담을 수 있습니다. 한 번에 최대 2000장." />
-
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="AccountLine" Grid.Column="0" VerticalAlignment="Center"
-                                           FontSize="12.5" TextTrimming="CharacterEllipsis" />
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <Button x:Name="ConnectButton" Content="계정 연결" Click="OnConnectAccount" />
-                                    <Button x:Name="DisconnectButton" Content="연결 해제" Margin="6,0,0,0"
-                                            Click="OnDisconnectAccount" />
-                                </StackPanel>
-                            </Grid>
-
-                            <Button x:Name="PickPhotosButton" Style="{StaticResource PrimaryButton}"
-                                    Content="Google Photos에서 사진 선택" Margin="0,10,0,0"
-                                    HorizontalAlignment="Left" Click="OnPickPhotos" />
-
-                            <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
-                                       Text="앨범에 사진을 새로 추가했다면 다시 선택해야 반영됩니다. Google이 2025년 3월 앨범 자동 조회 기능을 중단해, 자동 동기화가 필요하면 아래 '로컬 폴더'를 쓰세요." />
+                                       Text="공유 페이지를 직접 읽는 비공식 방식입니다. Google이 페이지 구조를 바꾸면 동작하지 않을 수 있고, 그때는 아래 '로컬 폴더'로 전환하면 됩니다." />
                         </StackPanel>
 
                         <RadioButton x:Name="SourceFolderRadio" GroupName="Source"
@@ -207,39 +177,6 @@
                         <ComboBox x:Name="FitCombo" Width="260" HorizontalAlignment="Left"
                                   SelectionChanged="OnFitModeChanged" />
                         <TextBlock x:Name="FitHint" Style="{StaticResource Hint}" Margin="0,6,0,0" />
-                    </StackPanel>
-                </Border>
-
-                <!-- Google Cloud credentials -->
-                <Border Style="{StaticResource CardPanel}">
-                    <StackPanel>
-                        <TextBlock Text="Google 연결에 쓸 OAuth 클라이언트" Style="{StaticResource SectionTitle}" />
-                        <TextBlock Style="{StaticResource Hint}"
-                                   Text="개인 계정 정보가 아니라 '앱 등록 정보'입니다. 이 프로그램에는 아무 자격증명도 들어 있지 않아, 사용하려면 한 번만 직접 발급해 등록해야 합니다." />
-
-                        <RadioButton x:Name="CredUserRadio" GroupName="Cred" Margin="0,10,0,0"
-                                     Content="직접 발급한 client_secret.json 사용" />
-                        <StackPanel Margin="22,2,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="ClientStatusLine" Grid.Column="0" FontSize="12.5"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <Button Content="파일 선택" Click="OnImportClientSecret" />
-                                    <Button x:Name="ClearClientButton" Content="삭제" Margin="6,0,0,0"
-                                            Click="OnClearClientSecret" />
-                                </StackPanel>
-                            </Grid>
-                            <Button Content="발급 방법 보기" HorizontalAlignment="Left" Margin="0,8,0,0"
-                                    Click="OnOpenSetupGuide" />
-                        </StackPanel>
-
-                        <RadioButton x:Name="CredBundledRadio" GroupName="Cred" Margin="0,10,0,0"
-                                     Content="이 빌드에 포함된 클라이언트 사용" />
-                        <TextBlock x:Name="BundledHint" Style="{StaticResource Hint}" Margin="22,0,0,0" />
                     </StackPanel>
                 </Border>
 

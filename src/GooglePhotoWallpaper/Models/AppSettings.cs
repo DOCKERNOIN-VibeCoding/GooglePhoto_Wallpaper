@@ -4,16 +4,14 @@ namespace GooglePhotoWallpaper.Models;
 
 public enum PhotoSourceKind
 {
-    /// <summary>Pick photos in Google's picker. A snapshot - it does not follow the album.</summary>
-    GooglePhotos = 0,
-
-    LocalFolder = 1,
-
     /// <summary>
-    /// Follow a link-shared Google Photos album. The only option that picks up photos added to the
-    /// album later, so it is the default.
+    /// Follow a link-shared Google Photos album. Picks up photos added to the album later, so it is
+    /// the default.
     /// </summary>
-    SharedAlbum = 2,
+    SharedAlbum = 0,
+
+    /// <summary>Read a folder on disk. Nothing to break, and it follows the folder too.</summary>
+    LocalFolder = 1,
 }
 
 public enum MonitorAssignmentMode
@@ -61,15 +59,6 @@ public enum PhotoFitMode
     WindowsSpan = 7,
 }
 
-public enum OAuthCredentialMode
-{
-    /// <summary>The user registers their own Google Cloud OAuth client. Nothing ships with the app.</summary>
-    UserProvided = 0,
-
-    /// <summary>A client id compiled into the build. Only usable once the app passes Google OAuth verification.</summary>
-    Bundled = 1,
-}
-
 public sealed class AppSettings
 {
     /// <summary>Minutes between wallpaper changes.</summary>
@@ -91,8 +80,6 @@ public sealed class AppSettings
 
     /// <summary>Recurse into subfolders when <see cref="Source"/> is <see cref="PhotoSourceKind.LocalFolder"/>.</summary>
     public bool LocalFolderRecursive { get; set; } = true;
-
-    public OAuthCredentialMode CredentialMode { get; set; } = OAuthCredentialMode.UserProvided;
 
     public MonitorAssignmentMode MonitorMode { get; set; } = MonitorAssignmentMode.Sequential;
 

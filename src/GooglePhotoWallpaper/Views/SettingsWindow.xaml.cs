@@ -7,7 +7,6 @@ using System.Windows.Media.Imaging;
 using GooglePhotoWallpaper.Interop;
 using GooglePhotoWallpaper.Models;
 using GooglePhotoWallpaper.Services;
-using GooglePhotoWallpaper.Services.Google;
 using GooglePhotoWallpaper.Services.Sources;
 using Forms = System.Windows.Forms;
 
@@ -97,8 +96,7 @@ public partial class SettingsWindow : Window
         {
             AppSettings s = _services.Settings;
 
-            SourceAlbumRadio.IsChecked = s.Source == PhotoSourceKind.SharedAlbum;
-            SourceGoogleRadio.IsChecked = s.Source == PhotoSourceKind.GooglePhotos;
+            SourceAlbumRadio.IsChecked = s.Source != PhotoSourceKind.LocalFolder;
             SourceFolderRadio.IsChecked = s.Source == PhotoSourceKind.LocalFolder;
 
             AlbumUrlBox.Text = s.SharedAlbumUrl ?? string.Empty;
@@ -121,18 +119,9 @@ public partial class SettingsWindow : Window
             FitCombo.SelectedIndex = fitIndex >= 0 ? fitIndex : 0;
             UpdateFitHint();
 
-            CredUserRadio.IsChecked = s.CredentialMode == OAuthCredentialMode.UserProvided;
-            CredBundledRadio.IsChecked = s.CredentialMode == OAuthCredentialMode.Bundled;
-            CredBundledRadio.IsEnabled = OAuthClientConfig.HasBundledClient;
-            BundledHint.Text = OAuthClientConfig.HasBundledClient
-                ? "이 빌드에는 검증된 클라이언트가 포함되어 있습니다."
-                : "이 빌드에는 포함된 클라이언트가 없습니다. 배포용 공개 빌드는 자격증명을 담지 않습니다.";
-
             StartupCheck.IsChecked = s.StartWithWindows;
             ChangeOnStartCheck.IsChecked = s.ChangeOnStartup;
 
-            RefreshAccountLine();
-            RefreshClientLine();
         }
         finally
         {
@@ -144,12 +133,9 @@ public partial class SettingsWindow : Window
     {
         AppSettings s = _services.Settings;
 
-        s.Source = true switch
-        {
-            _ when SourceAlbumRadio.IsChecked == true => PhotoSourceKind.SharedAlbum,
-            _ when SourceFolderRadio.IsChecked == true => PhotoSourceKind.LocalFolder,
-            _ => PhotoSourceKind.GooglePhotos,
-        };
+        s.Source = SourceFolderRadio.IsChecked == true
+            ? PhotoSourceKind.LocalFolder
+            : PhotoSourceKind.SharedAlbum;
 
         s.SharedAlbumUrl = string.IsNullOrWhiteSpace(AlbumUrlBox.Text) ? null : AlbumUrlBox.Text.Trim();
 
@@ -187,31 +173,10 @@ public partial class SettingsWindow : Window
             s.FitMode = FitOptions[FitCombo.SelectedIndex].Value;
         }
 
-        s.CredentialMode = CredBundledRadio.IsChecked == true
-            ? OAuthCredentialMode.Bundled
-            : OAuthCredentialMode.UserProvided;
-
         s.StartWithWindows = StartupCheck.IsChecked == true;
         s.ChangeOnStartup = ChangeOnStartCheck.IsChecked == true;
 
         return s;
-    }
-
-    private void RefreshAccountLine()
-    {
-        bool connected = _services.IsGoogleConnected;
-        string? email = connected ? _services.ConnectedAccount : null;
-
-        AccountLine.Text = connected
-            ? $"연결됨: {email ?? "Google 계정"}"
-            : "연결되지 않음";
-
-        ConnectButton.Content = connected ? "다시 연결" : "계정 연결";
-        DisconnectButton.IsEnabled = connected;
-
-        // Picking signs the user in on its own when needed, so this stays available even with no
-        // stored token - it only needs an OAuth client to sign in against.
-        PickPhotosButton.IsEnabled = _services.HasOAuthClient;
     }
 
     /// <summary>
@@ -249,33 +214,6 @@ public partial class SettingsWindow : Window
         FitHint.Text = FitCombo.SelectedIndex >= 0 && FitCombo.SelectedIndex < FitOptions.Length
             ? FitOptions[FitCombo.SelectedIndex].Hint
             : string.Empty;
-    }
-
-    private void RefreshClientLine()
-    {
-        if (File.Exists(AppPaths.ClientSecretFile))
-        {
-            try
-            {
-                OAuthClientConfig config = OAuthClientConfig.FromClientSecretFile(AppPaths.ClientSecretFile);
-                // Only the project id is shown. The client id is not a password, but there is no
-                // reason to render it on screen either.
-                ClientStatusLine.Text = string.IsNullOrEmpty(config.ProjectId)
-                    ? "등록됨"
-                    : $"등록됨 (프로젝트: {config.ProjectId})";
-                ClearClientButton.IsEnabled = true;
-                return;
-            }
-            catch (Exception)
-            {
-                ClientStatusLine.Text = "등록된 파일을 읽을 수 없습니다";
-                ClearClientButton.IsEnabled = true;
-                return;
-            }
-        }
-
-        ClientStatusLine.Text = "등록되지 않음";
-        ClearClientButton.IsEnabled = false;
     }
 
     private void OnRotatorStatusChanged(object? sender, RotationStatus status)
@@ -412,97 +350,6 @@ public partial class SettingsWindow : Window
         RefreshStatus();
     }
 
-    private async void OnConnectAccount(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            _services.SaveSettings(CollectSettings());
-            OAuthClientConfig client = _services.RequireOAuthClient();
-
-            SetBusy("브라우저에서 Google 로그인을 완료해 주세요...");
-            _busyCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-
-            StoredToken token = await _services.OAuth.SignInAsync(client, _busyCancellation.Token);
-
-            SetBusy($"연결되었습니다: {token.AccountEmail ?? "Google 계정"}");
-            RefreshAccountLine();
-        }
-        catch (OperationCanceledException)
-        {
-            SetBusy("로그인이 취소되었습니다.");
-        }
-        catch (Exception ex)
-        {
-            App.Log(ex);
-            SetBusy(null);
-            ShowError("Google 계정 연결 실패", ex.Message);
-        }
-    }
-
-    private async void OnDisconnectAccount(object sender, RoutedEventArgs e)
-    {
-        if (MessageBox.Show(
-                "Google 계정 연결을 해제할까요?\n이미 내려받은 사진은 그대로 남습니다.",
-                "연결 해제",
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Question) != MessageBoxResult.OK)
-        {
-            return;
-        }
-
-        try
-        {
-            await _services.OAuth.RevokeAsync(CancellationToken.None);
-            SetBusy("연결을 해제했습니다.");
-        }
-        catch (Exception ex)
-        {
-            App.Log(ex);
-        }
-
-        RefreshAccountLine();
-    }
-
-    private async void OnPickPhotos(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            _services.SaveSettings(CollectSettings());
-            OAuthClientConfig client = _services.RequireOAuthClient();
-
-            var source = new GooglePhotosPickerSource(
-                _services.OAuth, _services.Picker, _services.Wallpaper, client);
-
-            _busyCancellation = new CancellationTokenSource(TimeSpan.FromHours(1));
-            var progress = new Progress<string>(SetBusy);
-
-            PickPhotosButton.IsEnabled = false;
-            IReadOnlyList<PhotoItem> photos = await source.RefreshAsync(progress, _busyCancellation.Token);
-
-            _services.Rotator.SetPhotos(photos);
-            _services.Library.PruneCache(AppPaths.CacheDirectory);
-            new WallpaperComposer().Prune(photos);
-
-            SetBusy($"{photos.Count}장을 적용했습니다.");
-            RefreshStatus();
-        }
-        catch (OperationCanceledException)
-        {
-            SetBusy("사진 선택이 취소되었습니다.");
-        }
-        catch (Exception ex)
-        {
-            App.Log(ex);
-            SetBusy(null);
-            ShowError("사진을 가져오지 못했습니다", ex.Message);
-        }
-        finally
-        {
-            PickPhotosButton.IsEnabled = _services.HasOAuthClient;
-            RefreshAccountLine();
-        }
-    }
-
     private void OnAlbumSyncIntervalChanged(object sender, RoutedEventArgs e)
     {
         if (_loading)
@@ -549,7 +396,7 @@ public partial class SettingsWindow : Window
 
             _services.Rotator.SetPhotos(photos);
             _services.Library.PruneCache(AppPaths.CacheDirectory);
-            new WallpaperComposer().Prune(photos);
+            _services.Composer.Prune(photos);
 
             SetBusy(source.LastNewCount > 0
                 ? $"{photos.Count}장을 적용했습니다. (새 사진 {source.LastNewCount}장)"
@@ -616,51 +463,6 @@ public partial class SettingsWindow : Window
             ShowError("폴더를 읽지 못했습니다", ex.Message);
         }
     }
-
-    private void OnImportClientSecret(object sender, RoutedEventArgs e)
-    {
-        var dialog = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = "Google Cloud에서 받은 client_secret.json 선택",
-            Filter = "JSON 파일 (*.json)|*.json|모든 파일 (*.*)|*.*",
-        };
-
-        if (dialog.ShowDialog() != true)
-        {
-            return;
-        }
-
-        try
-        {
-            _services.ImportClientSecret(dialog.FileName);
-            CredUserRadio.IsChecked = true;
-            _services.SaveSettings(CollectSettings());
-            RefreshClientLine();
-            SetBusy("OAuth 클라이언트를 등록했습니다. 이제 계정을 연결하세요.");
-        }
-        catch (Exception ex)
-        {
-            App.Log(ex);
-            ShowError("client_secret.json을 등록하지 못했습니다", ex.Message);
-        }
-    }
-
-    private void OnClearClientSecret(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            _services.ClearClientSecret();
-            RefreshClientLine();
-            SetBusy("등록된 OAuth 클라이언트를 삭제했습니다.");
-        }
-        catch (Exception ex)
-        {
-            App.Log(ex);
-        }
-    }
-
-    private void OnOpenSetupGuide(object sender, RoutedEventArgs e)
-        => OpenUrl("https://github.com/DOCKERNOIN-VibeCoding/GooglePhoto_Wallpaper/blob/main/docs/GOOGLE-CLOUD-SETUP.md");
 
     private void OnOpenCacheFolder(object sender, RoutedEventArgs e)
         => OpenUrl(AppPaths.CacheDirectory);

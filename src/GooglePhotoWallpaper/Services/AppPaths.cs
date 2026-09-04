@@ -22,9 +22,6 @@ public static class AppPaths
 
     public static string ManifestFile { get; } = Path.Combine(Root, "photos.json");
 
-    /// <summary>The user's own client_secret.json, copied here so the original can move or be deleted.</summary>
-    public static string ClientSecretFile { get; } = Path.Combine(Root, "client_secret.json");
-
     public static string LogFile { get; } = Path.Combine(Root, "app.log");
 
     public static void EnsureCreated()

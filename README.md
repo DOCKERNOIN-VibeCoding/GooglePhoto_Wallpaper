@@ -25,7 +25,7 @@ A·B·C → B·C·D 로 같은 규칙이 그대로 확장됩니다.
 |---|---|---|
 | ~~Library API~~ | ❌ | 앱이 직접 올린 사진만 조회 가능 (2025-03-31 변경) |
 | ~~공유(sharing) 스코프~~ | ❌ | 같은 날 삭제됨 |
-| **Picker API** | ❌ 사용자가 그때그때 선택 | ✅ 누구나 |
+| Picker API | ❌ 매번 직접 선택 | ✅ 누구나 — 자동 반영이 안 돼 쓰지 않음 |
 | Ambient API | ✅ 원래 이 용도 | ❌ [파트너 승인](https://developers.google.com/photos/partner-program/overview) 필요 (크롬캐스트가 쓰는 것) |
 
 그래서 이 프로그램은 **앨범의 공유 링크를 직접 읽습니다.** 앨범을 "링크가 있는 모든 사용자"로
@@ -35,7 +35,7 @@ A·B·C → B·C·D 로 같은 규칙이 그대로 확장됩니다.
 **되는 것**
 
 - 앨범에 사진 추가 → 다음 확인 때 자동 반영 (기본 15분, 1분까지 조정 가능)
-- Google 로그인 불필요, Google Cloud 프로젝트 불필요, `client_secret.json` 불필요
+- Google 로그인도, Google Cloud 프로젝트도 필요 없음
 - 이미 받은 사진은 다시 받지 않음 (새 사진만 다운로드)
 
 **한계**
@@ -53,13 +53,14 @@ A·B·C → B·C·D 로 같은 규칙이 그대로 확장됩니다.
 | **15분 (기본)** | **약 20 MB** |
 | 30분 | 약 10 MB |
 
-### 다른 두 가지 방식
+### 깨졌을 때 쓸 방식: 로컬 폴더
 
-- **로컬 폴더** — 폴더에 파일이 생기면 자동 반영. 가장 안정적이고 절대 깨지지 않습니다.
-  Google Takeout으로 받은 폴더나 OneDrive/Drive 동기화 폴더를 지정하세요.
-- **Google Photos 피커** — 공식 API. 브라우저에서 사진을 직접 고릅니다(앨범 이름으로 검색 가능,
-  최대 2000장). 자동 반영은 안 되고, Google Cloud에서 OAuth 클라이언트를 발급해야 합니다.
-  → [발급 가이드](docs/GOOGLE-CLOUD-SETUP.md)
+폴더에 파일이 생기면 자동 반영됩니다. 파일 시스템만 읽으므로 **깨질 일이 없습니다.**
+Google Takeout으로 받은 폴더나 OneDrive/Drive 동기화 폴더를 지정하세요.
+
+> 공식 Picker API로 사진을 직접 고르는 방식도 만들었다가 걷어냈습니다. 자동 반영이 안 되는 데다
+> 사용자마다 Google Cloud 프로젝트와 OAuth 클라이언트를 발급해야 해서, 얻는 것에 비해 부담이
+> 컸습니다. 코드는 커밋 `d570be2`에 남아 있습니다.
 
 ---
 
@@ -87,7 +88,8 @@ Windows의 기본 `채우기`는 화면을 꽉 채우는 대신 사진을 잘라
 
 ## 기능
 
-- Google Photos에서 사진 선택 → 로컬로 내려받아 캐시 (이후 오프라인 동작)
+- 공유 앨범 링크만 붙여넣으면 끝 — 로그인 없음
+- 앨범에 사진을 추가하면 자동 반영, 새 사진만 내려받아 캐시 (이후 오프라인 동작)
 - 로컬 폴더 소스 (하위 폴더 포함, 자동 재검색)
 - 모니터별 개별 배경화면 — Windows `IDesktopWallpaper` 사용
 - 모니터 배치 3가지 — 순차(한 칸씩) / 전체 동일 / **지정한 모니터 1대만**
@@ -99,16 +101,14 @@ Windows의 기본 `채우기`는 화면을 꽉 채우는 대신 사진을 잘라
 
 ## 개인정보와 배포
 
-- **프로그램에는 어떤 자격증명도 들어 있지 않습니다.** 공개 빌드의
-  `OAuthClientConfig.BundledClientId`는 빈 문자열입니다.
-- OAuth 클라이언트는 사용자가 직접 발급해 설정창에서 등록합니다 →
-  **[발급 방법 (5분)](docs/GOOGLE-CLOUD-SETUP.md)**
-- 발급받은 토큰은 **DPAPI로 암호화**되어 `%LOCALAPPDATA%\GooglePhotoWallpaper\token.dat`에만
-  저장됩니다. 현재 Windows 사용자 계정으로만 복호화되며, `settings.json`이나 로그에는 절대
-  기록되지 않습니다.
+- **로그인이 없습니다.** 계정도, 토큰도, 자격증명도 저장하지 않습니다. 공유 앨범 링크는
+  소유자가 공개한 주소이고, 사진은 인증 없이 받아집니다.
+- 저장되는 것은 `%LOCALAPPDATA%\GooglePhotoWallpaper\` 아래의 설정 파일과 내려받은 사진뿐입니다.
 - 사진은 Google에서 직접 받아 로컬에만 저장됩니다. 외부로 보내는 것은 없습니다.
+- 빌드에 넣을 자격증명 자체가 없으므로 그대로 자유롭게 배포할 수 있습니다.
 
-배포 방식과 Google OAuth 검증에 대해서는 **[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)** 참고.
+> ⚠️ **공유 앨범 링크는 주소를 아는 사람이면 누구나 볼 수 있습니다.**
+> 공개되어도 괜찮은 사진만 앨범에 담으세요.
 
 ## 설치해서 쓰기
 
@@ -146,8 +146,7 @@ dotnet run --project tests/UnitTests
 ```
 src/GooglePhotoWallpaper/
 ├─ Interop/
-│  ├─ DesktopWallpaperInterop.cs   IDesktopWallpaper COM (모니터별 배경화면)
-│  └─ DataProtection.cs            DPAPI P/Invoke (토큰 암호화)
+│  └─ DesktopWallpaperInterop.cs   IDesktopWallpaper COM (모니터별 배경화면)
 ├─ Services/
 │  ├─ RotationEngine.cs            한 칸씩 미는 배치 계산 ← 핵심 로직
 │  ├─ WallpaperRotator.cs          타이머와 적용
@@ -155,8 +154,8 @@ src/GooglePhotoWallpaper/
 │  ├─ WallpaperComposer.cs         블러/레터박스 합성 + 캐시
 │  ├─ FitGeometry.cs               맞춤 배치 계산
 │  ├─ PhotoLibrary.cs              캐시 목록 관리
-│  ├─ Google/                      OAuth(PKCE) + Picker API
-│  └─ Sources/                     IPhotoSource → 공유 앨범 / 피커 / 로컬 폴더
+│  └─ Sources/                     IPhotoSource → 공유 앨범 / 로컬 폴더
+│     └─ SharedAlbumParser.cs      공유 페이지 파싱 ← 깨지면 여기만 고치면 됩니다
 └─ Views/SettingsWindow.xaml       설정창
 tests/UnitTests/                   의존성 없는 콘솔 테스트 러너 (회전·앨범 파서·맞춤 계산)
 ```
