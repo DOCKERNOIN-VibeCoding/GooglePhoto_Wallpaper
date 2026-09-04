@@ -122,6 +122,11 @@ public partial class SettingsWindow : Window
             StartupCheck.IsChecked = s.StartWithWindows;
             ChangeOnStartCheck.IsChecked = s.ChangeOnStartup;
 
+            DataLocationLine.Text = AppPaths.IsPortable
+                ? "포터블 모드 — 설정과 사진이 실행 파일 옆 폴더에 저장됩니다. 그 폴더를 지우면 흔적이 남지 않습니다."
+                : "실행 파일 위치에 쓸 수 없어 사용자 폴더에 저장합니다.";
+            DataPathLine.Text = AppPaths.Root;
+
         }
         finally
         {
@@ -465,7 +470,7 @@ public partial class SettingsWindow : Window
     }
 
     private void OnOpenCacheFolder(object sender, RoutedEventArgs e)
-        => OpenUrl(AppPaths.CacheDirectory);
+        => OpenUrl(AppPaths.Root);
 
     private void OnAdvanceNow(object sender, RoutedEventArgs e)
     {

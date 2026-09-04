@@ -103,7 +103,7 @@ Windows의 기본 `채우기`는 화면을 꽉 채우는 대신 사진을 잘라
 
 - **로그인이 없습니다.** 계정도, 토큰도, 자격증명도 저장하지 않습니다. 공유 앨범 링크는
   소유자가 공개한 주소이고, 사진은 인증 없이 받아집니다.
-- 저장되는 것은 `%LOCALAPPDATA%\GooglePhotoWallpaper\` 아래의 설정 파일과 내려받은 사진뿐입니다.
+- 저장되는 것은 실행 파일 옆 데이터 폴더의 설정 파일과 내려받은 사진뿐입니다.
 - 사진은 Google에서 직접 받아 로컬에만 저장됩니다. 외부로 보내는 것은 없습니다.
 - 빌드에 넣을 자격증명 자체가 없으므로 그대로 자유롭게 배포할 수 있습니다.
 
@@ -113,13 +113,35 @@ Windows의 기본 `채우기`는 화면을 꽉 채우는 대신 사진을 잘라
 ## 설치해서 쓰기
 
 1. [Releases](https://github.com/DOCKERNOIN-VibeCoding/GooglePhoto_Wallpaper/releases)에서
-   `GooglePhotoWallpaper.exe` 내려받기 (설치 불필요, 단일 파일)
+   `GooglePhotoWallpaper.exe` 내려받기 — **설치 없는 단일 파일, .NET 설치도 불필요**
 2. Google Photos에서 배경화면용 앨범을 만들고 **공유 → 링크 만들기**
 3. 프로그램을 실행하고 그 링크를 **Google Photos 공유 앨범** 칸에 붙여넣은 뒤 `지금 동기화`
 4. 변경 주기와 모니터 배치 방식을 정하고 `저장`
 
 이게 전부입니다. 로그인도, Google Cloud 설정도 필요 없습니다.
 이후로는 앨범에 사진을 넣기만 하면 알아서 따라옵니다.
+
+> 처음 실행할 때 Windows SmartScreen이 "알 수 없는 게시자" 경고를 띄웁니다.
+> 코드 서명 인증서가 없어서 그렇습니다. `추가 정보 → 실행`을 누르면 됩니다.
+
+### 포터블
+
+설정과 사진은 **실행 파일 옆의 `GooglePhotoWallpaper-Data` 폴더**에 저장됩니다.
+
+```
+아무폴더\ (USB도 가능)
+├─ GooglePhotoWallpaper.exe
+└─ GooglePhotoWallpaper-Data\
+   ├─ settings.json
+   ├─ photos.json
+   └─ cache\          내려받은 사진 + 합성본
+```
+
+- 폴더째 USB에 담아 다른 PC에서 실행하면 설정과 사진이 그대로 따라옵니다
+- 그 폴더만 지우면 흔적이 남지 않습니다
+- 실행 파일 위치에 쓸 수 없으면(예: `Program Files`) 자동으로
+  `%LOCALAPPDATA%\GooglePhotoWallpaper\`를 씁니다
+- 레지스트리를 쓰는 것은 `Windows 시작할 때 자동 실행` 하나뿐이고, 끄면 지워집니다
 
 ## 직접 빌드하기
 
@@ -166,7 +188,7 @@ tests/UnitTests/                   의존성 없는 콘솔 테스트 러너 (회
 ## 요구 사항
 
 - Windows 8 이상 (모니터별 배경화면 API가 Windows 8부터 제공)
-- 단일 exe 빌드는 런타임 불필요 / 경량 빌드는 .NET 8 Desktop Runtime 필요
+- 배포용 단일 exe는 런타임 불필요 / 경량 빌드는 .NET 8 Desktop Runtime 필요
 
 ## 라이선스
 
