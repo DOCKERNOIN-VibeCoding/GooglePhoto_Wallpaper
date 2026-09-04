@@ -24,6 +24,15 @@ public partial class SettingsWindow : Window
 {
     private static readonly int[] IntervalPresets = [1, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440];
 
+    private static readonly int[] AlbumSyncPresets = [1, 5, 10, 15, 30, 60, 180, 360, 720, 1440];
+
+    /// <summary>
+    /// Measured size of one compressed fetch of a shared album page. Google sends no ETag and marks
+    /// the page no-store, so every check pays this in full - worth showing before someone sets the
+    /// interval to one minute.
+    /// </summary>
+    private const double AlbumPageKilobytes = 209;
+
     private static readonly (DesktopWallpaperPosition Value, string Label)[] PositionOptions =
     [
         (DesktopWallpaperPosition.Fill, "채우기 (Fill)"),
@@ -56,6 +65,11 @@ public partial class SettingsWindow : Window
             IntervalCombo.Items.Add(minutes.ToString(CultureInfo.InvariantCulture));
         }
 
+        foreach (int minutes in AlbumSyncPresets)
+        {
+            AlbumSyncCombo.Items.Add(minutes.ToString(CultureInfo.InvariantCulture));
+        }
+
         LoadFromSettings();
         _services.Rotator.StatusChanged += OnRotatorStatusChanged;
         Closed += (_, _) =>
@@ -74,8 +88,13 @@ public partial class SettingsWindow : Window
         {
             AppSettings s = _services.Settings;
 
+            SourceAlbumRadio.IsChecked = s.Source == PhotoSourceKind.SharedAlbum;
             SourceGoogleRadio.IsChecked = s.Source == PhotoSourceKind.GooglePhotos;
             SourceFolderRadio.IsChecked = s.Source == PhotoSourceKind.LocalFolder;
+
+            AlbumUrlBox.Text = s.SharedAlbumUrl ?? string.Empty;
+            AlbumSyncCombo.Text = s.AlbumSyncMinutes.ToString(CultureInfo.InvariantCulture);
+            UpdateAlbumTrafficHint();
 
             FolderPathBox.Text = s.LocalFolderPath ?? string.Empty;
             RecursiveCheck.IsChecked = s.LocalFolderRecursive;
@@ -112,9 +131,20 @@ public partial class SettingsWindow : Window
     {
         AppSettings s = _services.Settings;
 
-        s.Source = SourceFolderRadio.IsChecked == true
-            ? PhotoSourceKind.LocalFolder
-            : PhotoSourceKind.GooglePhotos;
+        s.Source = true switch
+        {
+            _ when SourceAlbumRadio.IsChecked == true => PhotoSourceKind.SharedAlbum,
+            _ when SourceFolderRadio.IsChecked == true => PhotoSourceKind.LocalFolder,
+            _ => PhotoSourceKind.GooglePhotos,
+        };
+
+        s.SharedAlbumUrl = string.IsNullOrWhiteSpace(AlbumUrlBox.Text) ? null : AlbumUrlBox.Text.Trim();
+
+        if (int.TryParse(AlbumSyncCombo.Text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                out int syncMinutes) && syncMinutes >= 1)
+        {
+            s.AlbumSyncMinutes = Math.Min(syncMinutes, 60 * 24);
+        }
 
         s.LocalFolderPath = string.IsNullOrWhiteSpace(FolderPathBox.Text) ? null : FolderPathBox.Text;
         s.LocalFolderRecursive = RecursiveCheck.IsChecked == true;
@@ -154,7 +184,10 @@ public partial class SettingsWindow : Window
 
         ConnectButton.Content = connected ? "다시 연결" : "계정 연결";
         DisconnectButton.IsEnabled = connected;
-        PickPhotosButton.IsEnabled = connected;
+
+        // Picking signs the user in on its own when needed, so this stays available even with no
+        // stored token - it only needs an OAuth client to sign in against.
+        PickPhotosButton.IsEnabled = _services.HasOAuthClient;
     }
 
     private void RefreshClientLine()
@@ -383,7 +416,72 @@ public partial class SettingsWindow : Window
         }
         finally
         {
-            PickPhotosButton.IsEnabled = _services.IsGoogleConnected;
+            PickPhotosButton.IsEnabled = _services.HasOAuthClient;
+            RefreshAccountLine();
+        }
+    }
+
+    private void OnAlbumSyncIntervalChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        UpdateAlbumTrafficHint();
+    }
+
+    /// <summary>
+    /// Spells out what the chosen interval costs per day, so a one-minute setting is a decision
+    /// rather than a surprise on the next mobile bill.
+    /// </summary>
+    private void UpdateAlbumTrafficHint()
+    {
+        if (!int.TryParse(AlbumSyncCombo.Text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                out int minutes) || minutes < 1)
+        {
+            AlbumTrafficHint.Text = string.Empty;
+            return;
+        }
+
+        double perDayMb = 1440.0 / minutes * AlbumPageKilobytes / 1024.0;
+        AlbumTrafficHint.Text = $"분마다 확인 · 하루 약 {perDayMb:0.#} MB";
+    }
+
+    private async void OnSyncAlbum(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SourceAlbumRadio.IsChecked = true;
+            _services.SaveSettings(CollectSettings());
+
+            if (_services.CreateSource() is not SharedAlbumSource source)
+            {
+                SetBusy("공유 앨범 링크를 먼저 붙여넣으세요.");
+                return;
+            }
+
+            _busyCancellation = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            IReadOnlyList<PhotoItem> photos =
+                await source.RefreshAsync(new Progress<string>(SetBusy), _busyCancellation.Token);
+
+            _services.Rotator.SetPhotos(photos);
+            _services.Library.PruneCache(AppPaths.CacheDirectory);
+
+            SetBusy(source.LastNewCount > 0
+                ? $"{photos.Count}장을 적용했습니다. (새 사진 {source.LastNewCount}장)"
+                : $"{photos.Count}장을 적용했습니다.");
+            RefreshStatus();
+        }
+        catch (OperationCanceledException)
+        {
+            SetBusy("동기화가 취소되었습니다.");
+        }
+        catch (Exception ex)
+        {
+            App.Log(ex);
+            SetBusy(null);
+            ShowError("공유 앨범을 읽지 못했습니다", ex.Message);
         }
     }
 

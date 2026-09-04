@@ -6,17 +6,19 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>GooglePhotoWallpaper.Tests</RootNamespace>
-    <AssemblyName>RotationTests</AssemblyName>
+    <AssemblyName>UnitTests</AssemblyName>
   </PropertyGroup>
 
   <!--
-    RotationEngine is pure logic with no Windows dependencies, so it is compiled straight into this
-    plain console runner. That keeps the tests runnable with nothing but the .NET SDK - no NuGet
+    Both units under test are pure logic with no Windows dependencies, so they compile straight into
+    this plain console runner. That keeps the tests runnable with nothing but the .NET SDK - no NuGet
     feed, no test framework to restore.
   -->
   <ItemGroup>
     <Compile Include="..\..\src\GooglePhotoWallpaper\Services\RotationEngine.cs"
              Link="RotationEngine.cs" />
+    <Compile Include="..\..\src\GooglePhotoWallpaper\Services\Sources\SharedAlbumParser.cs"
+             Link="SharedAlbumParser.cs" />
   </ItemGroup>
 
 </Project>

@@ -12,6 +12,12 @@ public sealed class GoogleAuthException : Exception
     public GoogleAuthException(string message, Exception? inner = null) : base(message, inner)
     {
     }
+
+    /// <summary>
+    /// True when the only thing wrong is that there is no usable token, so signing in again fixes
+    /// it. Callers use this to re-authenticate silently instead of showing the user an error.
+    /// </summary>
+    public bool RequiresSignIn { get; init; }
 }
 
 /// <summary>
@@ -112,7 +118,7 @@ public sealed class GoogleOAuthService
     public async Task<string> GetAccessTokenAsync(OAuthClientConfig client, CancellationToken cancellationToken)
     {
         StoredToken token = _tokenStore.Load()
-            ?? throw new GoogleAuthException("Google 계정이 연결되어 있지 않습니다. 설정에서 먼저 연결해 주세요.");
+            ?? throw new GoogleAuthException("Google 계정이 연결되어 있지 않습니다.") { RequiresSignIn = true };
 
         if (token.AccessTokenUsable)
         {
@@ -121,7 +127,7 @@ public sealed class GoogleOAuthService
 
         if (string.IsNullOrEmpty(token.RefreshToken))
         {
-            throw new GoogleAuthException("저장된 refresh token이 없습니다. 계정을 다시 연결해 주세요.");
+            throw new GoogleAuthException("저장된 refresh token이 없습니다.") { RequiresSignIn = true };
         }
 
         var form = new Dictionary<string, string>
@@ -145,8 +151,7 @@ public sealed class GoogleOAuthService
         {
             _tokenStore.Clear();
             throw new GoogleAuthException(
-                "저장된 인증이 만료되었습니다. OAuth 동의 화면이 '테스트' 상태이면 refresh token이 7일 만에 만료됩니다. " +
-                "설정에서 계정을 다시 연결하거나, Google Cloud 콘솔에서 앱을 '프로덕션'으로 게시하세요.", ex);
+                "저장된 인증이 만료되었습니다.", ex) { RequiresSignIn = true };
         }
 
         // A refresh response does not repeat the refresh token; keep the one already stored.
@@ -155,6 +160,31 @@ public sealed class GoogleOAuthService
         _tokenStore.Save(refreshed);
 
         return refreshed.AccessToken!;
+    }
+
+    /// <summary>
+    /// Returns a usable access token, signing in again if the stored one is gone or has expired.
+    ///
+    /// This is what makes the 7-day refresh token lifetime of an unpublished OAuth client a
+    /// non-event. Rotation never calls this - it reads cached files - so a dead token only surfaces
+    /// when the user is picking photos, and picking already sends them to the browser. Rather than
+    /// failing with "reconnect your account", the browser trip just happens to start with a login.
+    ///
+    /// Only call this from a user-initiated action: it can open a browser window.
+    /// </summary>
+    public async Task<string> EnsureAccessTokenAsync(
+        OAuthClientConfig client, IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetAccessTokenAsync(client, cancellationToken).ConfigureAwait(false);
+        }
+        catch (GoogleAuthException ex) when (ex.RequiresSignIn)
+        {
+            progress?.Report("Google 로그인이 필요합니다. 브라우저에서 로그인해 주세요...");
+            await SignInAsync(client, cancellationToken).ConfigureAwait(false);
+            return await GetAccessTokenAsync(client, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     public async Task RevokeAsync(CancellationToken cancellationToken)

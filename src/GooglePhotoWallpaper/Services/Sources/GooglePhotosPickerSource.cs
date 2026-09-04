@@ -49,7 +49,13 @@ public sealed class GooglePhotosPickerSource : IPhotoSource
         IProgress<string>? progress, CancellationToken cancellationToken)
     {
         progress?.Report("Google 계정 확인 중...");
-        string accessToken = await _oauth.GetAccessTokenAsync(_client, cancellationToken).ConfigureAwait(false);
+
+        // Picking is user-initiated and browser-bound anyway, so a stale token is repaired here
+        // rather than reported as an error. Inside the download loop below the plain accessor is
+        // used instead - a browser window must never appear mid-download.
+        string accessToken = await _oauth
+            .EnsureAccessTokenAsync(_client, progress, cancellationToken)
+            .ConfigureAwait(false);
 
         progress?.Report("사진 선택 창을 여는 중...");
         PickingSession session = await _picker.CreateSessionAsync(accessToken, cancellationToken)

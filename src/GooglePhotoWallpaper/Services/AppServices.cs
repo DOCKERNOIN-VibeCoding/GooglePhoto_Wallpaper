@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using GooglePhotoWallpaper.Models;
 using GooglePhotoWallpaper.Services.Google;
@@ -18,7 +19,15 @@ public sealed class AppServices : IDisposable
     {
         AppPaths.EnsureCreated();
 
-        _http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+        // The shared-album page is 1.17 MB raw and 209 KB compressed, and it is polled on a timer,
+        // so decompression is worth turning on explicitly.
+        _http = new HttpClient(new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+        })
+        {
+            Timeout = TimeSpan.FromMinutes(2),
+        };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("GooglePhotoWallpaper/1.0");
 
         SettingsStore = new SettingsStore();
@@ -112,17 +121,25 @@ public sealed class AppServices : IDisposable
     /// <summary>Builds the source described by the current settings.</summary>
     public IPhotoSource? CreateSource()
     {
-        if (Settings.Source == PhotoSourceKind.LocalFolder)
+        switch (Settings.Source)
         {
-            return string.IsNullOrWhiteSpace(Settings.LocalFolderPath)
-                ? null
-                : new LocalFolderSource(Settings.LocalFolderPath, Settings.LocalFolderRecursive);
-        }
+            case PhotoSourceKind.SharedAlbum:
+                return string.IsNullOrWhiteSpace(Settings.SharedAlbumUrl)
+                    ? null
+                    : new SharedAlbumSource(
+                        _http, Wallpaper, Settings.SharedAlbumUrl, Settings.AlbumSyncInterval);
 
-        OAuthClientConfig? client = ResolveOAuthClient();
-        return client is null
-            ? null
-            : new GooglePhotosPickerSource(OAuth, Picker, Wallpaper, client);
+            case PhotoSourceKind.LocalFolder:
+                return string.IsNullOrWhiteSpace(Settings.LocalFolderPath)
+                    ? null
+                    : new LocalFolderSource(Settings.LocalFolderPath, Settings.LocalFolderRecursive);
+
+            default:
+                OAuthClientConfig? client = ResolveOAuthClient();
+                return client is null
+                    ? null
+                    : new GooglePhotosPickerSource(OAuth, Picker, Wallpaper, client);
+        }
     }
 
     public void SaveSettings(AppSettings settings)

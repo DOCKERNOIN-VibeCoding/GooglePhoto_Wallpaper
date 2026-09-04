@@ -31,6 +31,7 @@ public sealed class WallpaperRotator : IDisposable
     private readonly PhotoLibrary _library;
     private readonly SettingsStore _settingsStore;
     private readonly object _gate = new();
+    private readonly object _refreshGate = new();
 
     private System.Threading.Timer? _timer;
     private AppSettings _settings;
@@ -80,7 +81,18 @@ public sealed class WallpaperRotator : IDisposable
             _timer = new System.Threading.Timer(OnTick, null, TimeSpan.Zero, TickInterval);
         }
 
-        if (_settings.ChangeOnStartup)
+        // With a shared album configured but nothing cached yet - a first run, or a cache the user
+        // cleared - waiting a whole interval before the first sync would leave the desktop empty for
+        // up to a day. Pull the album straight away instead.
+        if (_library.Count == 0 && _silentRefreshSource is not null)
+        {
+            Task.Run(() =>
+            {
+                RefreshSilentSourceIfPossible();
+                ApplyCurrent();
+            });
+        }
+        else if (_settings.ChangeOnStartup)
         {
             ApplyCurrent();
         }
@@ -190,6 +202,12 @@ public sealed class WallpaperRotator : IDisposable
             return;
         }
 
+        if (!Monitor.TryEnter(_refreshGate))
+        {
+            // A refresh is already running - the startup sync and a timer tick can coincide.
+            return;
+        }
+
         try
         {
             IReadOnlyList<PhotoItem> photos = source
@@ -212,6 +230,10 @@ public sealed class WallpaperRotator : IDisposable
             {
                 _lastError = ex.Message;
             }
+        }
+        finally
+        {
+            Monitor.Exit(_refreshGate);
         }
     }
 

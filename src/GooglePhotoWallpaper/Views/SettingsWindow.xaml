@@ -63,6 +63,47 @@
                     <StackPanel>
                         <TextBlock Text="사진 가져올 곳" Style="{StaticResource SectionTitle}" />
 
+                        <RadioButton x:Name="SourceAlbumRadio" GroupName="Source"
+                                     Content="Google Photos 공유 앨범 (자동 동기화)"
+                                     Checked="OnSourceChanged" />
+                        <StackPanel Margin="22,2,0,10"
+                                    Visibility="{Binding IsChecked, ElementName=SourceAlbumRadio,
+                                                 Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Google Photos에서 앨범을 열고 공유 → 링크 만들기로 받은 주소를 붙여넣으세요. 이후 그 앨범에 사진을 추가하기만 하면 자동으로 배경화면 목록에 들어옵니다. 로그인도 Google Cloud 설정도 필요 없습니다." />
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="AlbumUrlBox" Grid.Column="0"
+                                         ToolTip="https://photos.app.goo.gl/... 또는 https://photos.google.com/share/..." />
+                                <Button Grid.Column="1" Content="지금 동기화" Margin="6,0,0,0"
+                                        Click="OnSyncAlbum" />
+                            </Grid>
+
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="확인 주기" VerticalAlignment="Center"
+                                           FontSize="12.5" Margin="0,0,10,0" />
+                                <ComboBox x:Name="AlbumSyncCombo" Grid.Column="1" Width="110"
+                                          IsEditable="True"
+                                          SelectionChanged="OnAlbumSyncIntervalChanged"
+                                          LostFocus="OnAlbumSyncIntervalChanged" />
+                                <TextBlock x:Name="AlbumTrafficHint" Grid.Column="2"
+                                           Style="{StaticResource Hint}" VerticalAlignment="Center"
+                                           Margin="8,0,0,0" />
+                            </Grid>
+
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
+                                       Text="공유 페이지를 직접 읽는 비공식 방식입니다. Google이 페이지 구조를 바꾸면 동작하지 않을 수 있고, 그때는 아래 두 방식으로 전환하면 됩니다." />
+                        </StackPanel>
+
                         <RadioButton x:Name="SourceGoogleRadio" GroupName="Source"
                                      Content="Google Photos" Checked="OnSourceChanged" />
                         <StackPanel Margin="22,2,0,10"

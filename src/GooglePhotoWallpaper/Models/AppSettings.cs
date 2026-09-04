@@ -4,8 +4,16 @@ namespace GooglePhotoWallpaper.Models;
 
 public enum PhotoSourceKind
 {
+    /// <summary>Pick photos in Google's picker. A snapshot - it does not follow the album.</summary>
     GooglePhotos = 0,
+
     LocalFolder = 1,
+
+    /// <summary>
+    /// Follow a link-shared Google Photos album. The only option that picks up photos added to the
+    /// album later, so it is the default.
+    /// </summary>
+    SharedAlbum = 2,
 }
 
 public enum OAuthCredentialMode
@@ -22,7 +30,17 @@ public sealed class AppSettings
     /// <summary>Minutes between wallpaper changes.</summary>
     public int IntervalMinutes { get; set; } = 30;
 
-    public PhotoSourceKind Source { get; set; } = PhotoSourceKind.GooglePhotos;
+    public PhotoSourceKind Source { get; set; } = PhotoSourceKind.SharedAlbum;
+
+    /// <summary>Share link of the Google Photos album to follow, short or full form.</summary>
+    public string? SharedAlbumUrl { get; set; }
+
+    /// <summary>
+    /// Minutes between checks of the shared album. Separate from <see cref="IntervalMinutes"/>
+    /// because each check re-fetches the whole album page - roughly 209 KB, since Google sends no
+    /// ETag - so 15 minutes costs about 20 MB a day and one minute would cost 300 MB.
+    /// </summary>
+    public int AlbumSyncMinutes { get; set; } = 15;
 
     public string? LocalFolderPath { get; set; }
 
@@ -52,4 +70,7 @@ public sealed class AppSettings
 
     [JsonIgnore]
     public TimeSpan Interval => TimeSpan.FromMinutes(Math.Clamp(IntervalMinutes, 1, 60 * 24));
+
+    [JsonIgnore]
+    public TimeSpan AlbumSyncInterval => TimeSpan.FromMinutes(Math.Clamp(AlbumSyncMinutes, 1, 60 * 24));
 }

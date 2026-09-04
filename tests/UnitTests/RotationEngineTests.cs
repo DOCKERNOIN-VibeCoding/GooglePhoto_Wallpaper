@@ -6,13 +6,11 @@ namespace GooglePhotoWallpaper.Tests;
 /// Checks the rotation rule the app is built around: each monitor is one step further along a
 /// shared list, and the whole window advances by one on every tick.
 /// </summary>
-internal static class Program
+internal static class RotationEngineTests
 {
     private const string Alphabet = "ABCDEFG";
 
-    private static int _failures;
-
-    private static int Main()
+    public static void Run()
     {
         StaggeredAcrossTwoMonitors();
         StaggeredAcrossThreeMonitors();
@@ -24,13 +22,6 @@ internal static class Program
         ShuffleKeepsMonitorsStaggered();
         ResumesFromASavedOffset();
         AdvanceIsIdempotentOverAFullCycle();
-
-        Console.WriteLine();
-        Console.WriteLine(_failures == 0
-            ? "all tests passed"
-            : $"{_failures} test(s) FAILED");
-
-        return _failures == 0 ? 0 : 1;
     }
 
     /// <summary>The exact sequence from the feature request: A/B, then B/C, then C/D.</summary>
@@ -39,13 +30,13 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 7, shuffle: false);
 
-        Check("tick 0 shows A and B", "AB", Render(engine, monitors: 2));
+        Assert.Equal("tick 0 shows A and B", "AB", Render(engine, monitors: 2));
         engine.Advance();
-        Check("tick 1 shows B and C", "BC", Render(engine, monitors: 2));
+        Assert.Equal("tick 1 shows B and C", "BC", Render(engine, monitors: 2));
         engine.Advance();
-        Check("tick 2 shows C and D", "CD", Render(engine, monitors: 2));
+        Assert.Equal("tick 2 shows C and D", "CD", Render(engine, monitors: 2));
         engine.Advance();
-        Check("tick 3 shows D and E", "DE", Render(engine, monitors: 2));
+        Assert.Equal("tick 3 shows D and E", "DE", Render(engine, monitors: 2));
     }
 
     private static void StaggeredAcrossThreeMonitors()
@@ -53,9 +44,9 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 7, shuffle: false);
 
-        Check("three monitors start at A/B/C", "ABC", Render(engine, monitors: 3));
+        Assert.Equal("three monitors start at A/B/C", "ABC", Render(engine, monitors: 3));
         engine.Advance();
-        Check("three monitors move to B/C/D", "BCD", Render(engine, monitors: 3));
+        Assert.Equal("three monitors move to B/C/D", "BCD", Render(engine, monitors: 3));
     }
 
     private static void WrapsAroundTheEndOfTheList()
@@ -63,9 +54,9 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 7, shuffle: false, startOffset: 6);
 
-        Check("last photo pairs with the first", "GA", Render(engine, monitors: 2));
+        Assert.Equal("last photo pairs with the first", "GA", Render(engine, monitors: 2));
         engine.Advance();
-        Check("offset wraps to zero", "AB", Render(engine, monitors: 2));
+        Assert.Equal("offset wraps to zero", "AB", Render(engine, monitors: 2));
     }
 
     private static void SingleMonitorIsAPlainSequence()
@@ -73,9 +64,9 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 7, shuffle: false);
 
-        Check("single monitor starts at A", "A", Render(engine, monitors: 1));
+        Assert.Equal("single monitor starts at A", "A", Render(engine, monitors: 1));
         engine.Advance();
-        Check("single monitor moves to B", "B", Render(engine, monitors: 1));
+        Assert.Equal("single monitor moves to B", "B", Render(engine, monitors: 1));
     }
 
     private static void MoreMonitorsThanPhotosRepeatsRatherThanCrashing()
@@ -83,7 +74,7 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 2, shuffle: false);
 
-        Check("three monitors over two photos repeat", "ABA", Render(engine, monitors: 3));
+        Assert.Equal("three monitors over two photos repeat", "ABA", Render(engine, monitors: 3));
     }
 
     private static void EmptyLibraryIsHarmless()
@@ -91,11 +82,11 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 0, shuffle: false);
 
-        Check("no photos yields no assignment", 0, engine.CurrentAssignment(2).Count);
-        Check("mirrored index reports nothing", -1, engine.CurrentMirroredIndex());
+        Assert.Equal("no photos yields no assignment", 0, engine.CurrentAssignment(2).Count);
+        Assert.Equal("mirrored index reports nothing", -1, engine.CurrentMirroredIndex());
 
         engine.Advance();
-        Check("advancing an empty list is a no-op", 0, engine.Offset);
+        Assert.Equal("advancing an empty list is a no-op", 0, engine.Offset);
     }
 
     private static void MirrorModeMatchesTheFirstMonitor()
@@ -104,7 +95,7 @@ internal static class Program
         engine.Load(photoCount: 7, shuffle: false);
         engine.Advance(3);
 
-        Check("mirror uses the same photo monitor 1 would get",
+        Assert.Equal("mirror uses the same photo monitor 1 would get",
             engine.CurrentAssignment(2)[0],
             engine.CurrentMirroredIndex());
     }
@@ -132,14 +123,14 @@ internal static class Program
             }
         }
 
-        Check("shuffled order still hands monitor 2's photo to monitor 1 next", true, staggered);
+        Assert.Equal("shuffled order still hands monitor 2's photo to monitor 1 next", true, staggered);
 
         var ordered = new RotationEngine();
         ordered.Load(photoCount: 7, shuffle: false, shuffleSeed: 12345);
         var shuffled = new RotationEngine();
         shuffled.Load(photoCount: 7, shuffle: true, shuffleSeed: 12345);
 
-        Check("shuffle actually changes the order",
+        Assert.Equal("shuffle actually changes the order",
             true,
             Render(ordered, 7) != Render(shuffled, 7));
     }
@@ -149,8 +140,8 @@ internal static class Program
         var engine = new RotationEngine();
         engine.Load(photoCount: 7, shuffle: false, startOffset: 4);
 
-        Check("restored offset is honoured", 4, engine.Offset);
-        Check("restored offset renders from E", "EF", Render(engine, monitors: 2));
+        Assert.Equal("restored offset is honoured", 4, engine.Offset);
+        Assert.Equal("restored offset renders from E", "EF", Render(engine, monitors: 2));
     }
 
     private static void AdvanceIsIdempotentOverAFullCycle()
@@ -164,22 +155,10 @@ internal static class Program
             engine.Advance();
         }
 
-        Check("a full cycle returns to the start", before, Render(engine, monitors: 2));
+        Assert.Equal("a full cycle returns to the start", before, Render(engine, monitors: 2));
     }
 
     private static string Render(RotationEngine engine, int monitors)
         => string.Concat(engine.CurrentAssignment(monitors).Select(i => Alphabet[i % Alphabet.Length]));
 
-    private static void Check<T>(string description, T expected, T actual)
-    {
-        bool ok = EqualityComparer<T>.Default.Equals(expected, actual);
-        if (!ok)
-        {
-            _failures++;
-        }
-
-        Console.WriteLine(ok
-            ? $"  PASS  {description}"
-            : $"  FAIL  {description}  (expected {expected}, got {actual})");
-    }
 }

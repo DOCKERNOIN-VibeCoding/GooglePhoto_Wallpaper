@@ -24,10 +24,10 @@ Set-Location -Path $PSScriptRoot
 
 $project = 'src/GooglePhotoWallpaper/GooglePhotoWallpaper.csproj'
 
-Write-Host 'Running rotation tests...' -ForegroundColor Cyan
-dotnet run --project tests/RotationTests/RotationTests.csproj -c $Configuration --nologo -v q
+Write-Host 'Running tests...' -ForegroundColor Cyan
+dotnet run --project tests/UnitTests/UnitTests.csproj -c $Configuration --nologo -v q
 if ($LASTEXITCODE -ne 0) {
-    throw "Rotation tests failed - not publishing."
+    throw "Tests failed - not publishing."
 }
 
 if (Test-Path $OutputDirectory) {

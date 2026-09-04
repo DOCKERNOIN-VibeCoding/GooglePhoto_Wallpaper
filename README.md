@@ -16,32 +16,50 @@ A·B·C → B·C·D 로 같은 규칙이 그대로 확장됩니다.
 
 ---
 
-## 먼저 알아야 할 것: 앨범 자동 동기화는 불가능합니다
+## 앨범 자동 동기화 — 되긴 되는데, 비공식 경로입니다
 
-Google이 **2025년 3월 31일자로 `photoslibrary.readonly` 스코프를 삭제**했습니다. 앱이 사용자의
-앨범 목록을 읽거나 앨범 내용을 스스로 가져오는 API는 더 이상 존재하지 않습니다(기존 호출은
-`403 PERMISSION_DENIED`).
+목표는 "Google Photos 앨범에 사진을 넣으면 바탕화면 목록이 알아서 갱신되는 것"입니다.
+**공식 API로는 전부 막혀 있습니다.**
 
-남은 방법은 세 가지고, 이 프로그램은 그중 실제로 쓸 수 있는 것을 씁니다.
-
-| API | 앨범을 지정해두면 자동 반영 | 일반 개발자가 쓸 수 있나 |
+| API | 앨범을 따라가나 | 쓸 수 있나 |
 |---|---|---|
-| ~~Library API~~ | ❌ | 자기 앱이 만든 사진만 접근 가능 → 무의미 |
-| **Picker API** ← 이 앱이 사용 | ❌ 사용자가 직접 선택 | ✅ |
-| Ambient API | ✅ (원래 이 용도) | ❌ [파트너 프로그램](https://developers.google.com/photos/partner-program/overview) 승인 필요 |
+| ~~Library API~~ | ❌ | 앱이 직접 올린 사진만 조회 가능 (2025-03-31 변경) |
+| ~~공유(sharing) 스코프~~ | ❌ | 같은 날 삭제됨 |
+| **Picker API** | ❌ 사용자가 그때그때 선택 | ✅ 누구나 |
+| Ambient API | ✅ 원래 이 용도 | ❌ [파트너 승인](https://developers.google.com/photos/partner-program/overview) 필요 (크롬캐스트가 쓰는 것) |
 
-**앨범 안의 사진만 골라오는 것은 됩니다.** Picker 화면에 앨범 탭이 따로 보이지는 않지만,
-검색창에 앨범 이름을 입력하면 그 앨범의 사진이 나오고 거기서 선택하면 됩니다. Google 공식
-문서도 앱이 사용자에게 "앨범을 검색하라"고 안내할 것을 권장합니다. 한 번에 최대 2000장.
+그래서 이 프로그램은 **앨범의 공유 링크를 직접 읽습니다.** 앨범을 "링크가 있는 모든 사용자"로
+공유하면 그 페이지에 사진 목록이 들어 있고, 거기 있는 이미지 주소는 인증 없이 받아집니다.
+소유자가 공개한 링크를 그대로 읽는 것이라 접근 제어를 우회하는 것은 아닙니다.
 
-안 되는 건 딱 하나입니다 — **나중에 그 앨범에 사진을 추가해도 자동으로 따라오지 않습니다.**
-새 사진을 넣으려면 설정에서 다시 선택해야 합니다.
+**되는 것**
 
-> 크롬캐스트·구글 TV의 대기화면이 앨범을 자동으로 따라가는 건 Google 자사 기능이거나
-> Ambient API를 쓰는 것이고, Ambient API는 파트너 승인을 받은 기기 제조사에만 열려 있습니다.
+- 앨범에 사진 추가 → 다음 확인 때 자동 반영 (기본 15분, 1분까지 조정 가능)
+- Google 로그인 불필요, Google Cloud 프로젝트 불필요, `client_secret.json` 불필요
+- 이미 받은 사진은 다시 받지 않음 (새 사진만 다운로드)
 
-**자동 반영이 꼭 필요하다면 `로컬 폴더` 소스를 쓰세요.** 폴더에 파일이 추가되면 다음 변경
-때 자동으로 잡힙니다. Google Takeout으로 내려받은 앨범 폴더나 동기화 폴더를 지정하면 됩니다.
+**한계**
+
+- **공식 지원 인터페이스가 아닙니다.** Google이 페이지 구조를 바꾸면 동작이 멈출 수 있습니다.
+  그럴 때는 아래 `로컬 폴더` 방식으로 전환하면 됩니다.
+- 앨범을 링크 공유 상태로 둬야 합니다. 링크를 아는 사람은 볼 수 있습니다.
+- 푸시 알림은 없어서 **폴링**입니다. 진짜 실시간은 불가능합니다.
+- 확인 1회당 약 209 KB가 듭니다. Google이 ETag를 주지 않아 매번 전체를 받아야 합니다.
+
+| 확인 주기 | 하루 트래픽 |
+|---|---|
+| 1분 | 약 300 MB |
+| 5분 | 약 60 MB |
+| **15분 (기본)** | **약 20 MB** |
+| 30분 | 약 10 MB |
+
+### 다른 두 가지 방식
+
+- **로컬 폴더** — 폴더에 파일이 생기면 자동 반영. 가장 안정적이고 절대 깨지지 않습니다.
+  Google Takeout으로 받은 폴더나 OneDrive/Drive 동기화 폴더를 지정하세요.
+- **Google Photos 피커** — 공식 API. 브라우저에서 사진을 직접 고릅니다(앨범 이름으로 검색 가능,
+  최대 2000장). 자동 반영은 안 되고, Google Cloud에서 OAuth 클라이언트를 발급해야 합니다.
+  → [발급 가이드](docs/GOOGLE-CLOUD-SETUP.md)
 
 ---
 
@@ -74,12 +92,12 @@ Google이 **2025년 3월 31일자로 `photoslibrary.readonly` 스코프를 삭�
 
 1. [Releases](https://github.com/DOCKERNOIN-VibeCoding/GooglePhoto_Wallpaper/releases)에서
    `GooglePhotoWallpaper.exe` 내려받기 (설치 불필요, 단일 파일)
-2. 실행하면 설정창이 열립니다
-3. **[OAuth 클라이언트 발급 가이드](docs/GOOGLE-CLOUD-SETUP.md)** 대로 `client_secret.json`을
-   만들어 `파일 선택`으로 등록
-4. `계정 연결` → 브라우저에서 Google 로그인
-5. `Google Photos에서 사진 선택` → 검색창에 **앨범 이름** 입력 → 사진 선택 → `완료`
-6. 변경 주기와 모니터 배치 방식을 정하고 `저장`
+2. Google Photos에서 배경화면용 앨범을 만들고 **공유 → 링크 만들기**
+3. 프로그램을 실행하고 그 링크를 **Google Photos 공유 앨범** 칸에 붙여넣은 뒤 `지금 동기화`
+4. 변경 주기와 모니터 배치 방식을 정하고 `저장`
+
+이게 전부입니다. 로그인도, Google Cloud 설정도 필요 없습니다.
+이후로는 앨범에 사진을 넣기만 하면 알아서 따라옵니다.
 
 ## 직접 빌드하기
 
@@ -90,7 +108,7 @@ git clone https://github.com/DOCKERNOIN-VibeCoding/GooglePhoto_Wallpaper.git
 cd GooglePhoto_Wallpaper
 
 # 테스트
-dotnet run --project tests/RotationTests
+dotnet run --project tests/UnitTests
 
 # 배포용 단일 exe (.NET 런타임 불필요, 약 62MB)
 ./build.ps1
@@ -114,9 +132,9 @@ src/GooglePhotoWallpaper/
 │  ├─ WallpaperService.cs          모니터 열거, 배경화면 지정
 │  ├─ PhotoLibrary.cs              캐시 목록 관리
 │  ├─ Google/                      OAuth(PKCE) + Picker API
-│  └─ Sources/                     IPhotoSource → Google Photos / 로컬 폴더
+│  └─ Sources/                     IPhotoSource → 공유 앨범 / 피커 / 로컬 폴더
 └─ Views/SettingsWindow.xaml       설정창
-tests/RotationTests/               의존성 없는 콘솔 테스트 러너
+tests/UnitTests/                   의존성 없는 콘솔 테스트 러너 (회전 로직 + 앨범 파서)
 ```
 
 사진 소스를 `IPhotoSource`로 분리해 두었습니다. 나중에 Ambient API 파트너 승인을 받으면
